@@ -6,6 +6,7 @@ package termui
 
 import (
 	"fmt"
+	"strings"
 )
 
 // This is the implementation of multi-colored or stacked bar graph.  This is different from default barGraph which is implemented in bar.go
@@ -27,22 +28,23 @@ import (
 */
 type MBarChart struct {
 	Block
-	BarColor   [NumberofColors]Attribute
-	TextColor  Attribute
-	NumColor   [NumberofColors]Attribute
-	Data       [NumberofColors][]int
-	DataLabels []string
-	BarWidth   int
-	BarGap     int
-	labels     [][]rune
-	dataNum    [NumberofColors][][]rune
-	numBar     int
-	scale      float64
-	max        int
-	minDataLen int
-	numStack   int
-	ShowScale  bool
-	maxScale   []rune
+	BarColor     [NumberofColors]Attribute
+	TextColor    Attribute
+	NumColor     [NumberofColors]Attribute
+	Data         [NumberofColors][]int
+	DataLabels   []string
+	BarWidth     int
+	BarGap       int
+	labels       [][]rune
+	dataNum      [NumberofColors][][]rune
+	numBar       int
+	scale        float64
+	max          int
+	minDataLen   int
+	numStack     int
+	ShowScale    bool
+	maxScale     []rune
+	NumberLabels []string
 }
 
 // NewBarChart returns a new *BarChart with current theme.
@@ -51,6 +53,7 @@ func NewMBarChart() *MBarChart {
 	bc.BarColor[0] = ThemeAttr("mbarchart.bar.bg")
 	bc.NumColor[0] = ThemeAttr("mbarchart.num.fg")
 	bc.TextColor = ThemeAttr("mbarchart.text.fg")
+	bc.NumberLabels = []string{}
 	bc.BarGap = 1
 	bc.BarWidth = 3
 	return bc
@@ -203,7 +206,26 @@ func (bc *MBarChart) Buffer() Buffer {
 				}
 				x := bc.innerArea.Min.X + oftX + (bc.BarWidth-len(bc.dataNum[i1][i]))/2 + j
 				y := bc.innerArea.Min.Y + bc.innerArea.Dy() - 2 - ph
+				y = y - 1
 				buf.Set(x, y, c)
+
+				// create separator space
+				x = x - ((bc.BarWidth / 2) - 1)
+				x = x + 1
+				y = y + 1
+
+				// set the label ?
+				numberLabel := bc.NumberLabels[i1]
+				numberLabel = strings.Split(numberLabel, ",")[1][0:6]
+				for _, r := range numberLabel {
+					x = x + 1
+					c := Cell{
+						Ch: r,
+						Fg: bc.NumColor[i1],
+						Bg: bc.BarColor[i1],
+					}
+					buf.Set(x, y, c)
+				}
 			}
 			ph += h
 		}
@@ -220,7 +242,25 @@ func (bc *MBarChart) Buffer() Buffer {
 
 		y := bc.innerArea.Min.Y + bc.innerArea.Dy() - 2
 		x := bc.X
+		drift := 2
+		maxChars := 5
 		buf.Set(x, y, c)
+
+		// loop through labels and show each in buf on x axis
+		// author @mk
+		for i := 0; i < len(bc.DataLabels); i++ {
+			label := bc.DataLabels[i]
+			y := bc.innerArea.Max.Y - 1
+			x := ((bc.BarWidth * i) + (bc.BarWidth / 2)) + (i - drift) - (len(label) - maxChars)
+			for i, ru := range label {
+				c := Cell{
+					Ch: ru,
+					Bg: bc.Bg,
+					Fg: bc.TextColor,
+				}
+				buf.Set(x+i, y, c)
+			}
+		}
 
 		//Plot the maximum sacle value
 		for i := 0; i < len(bc.maxScale); i++ {
